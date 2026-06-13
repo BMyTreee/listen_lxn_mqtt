@@ -1,0 +1,9 @@
+[package]
+name = "listen_lxn_mqtt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rumqttc = "0.24"
+dotenvy = "0.15"
+mac_address = "1"
