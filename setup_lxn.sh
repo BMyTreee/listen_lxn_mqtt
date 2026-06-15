@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+#
+# Bootstrap the `lxn` host to run listen_lxn_mqtt.
+#   1. ensure Rust toolchain on lxn (via rustup)
+#   2. rsync source (excludes target + .env)
+#   3. cargo build --release on lxn
+#   4. ensure ~/.env on lxn (template only — never overwrite)
+#   5. start the binary in a named tmux session
+#
+# Does NOT read the local .env — you must populate the remote one yourself.
+#
+set -euo pipefail
+
+# ── constants ────────────────────────────────────────────────────────────────
+readonly SSH_HOST="${LXN_HOST:-lxn}"
+readonly SSH_USER="${LXN_USER:-pi}"
+readonly REMOTE_DIR="${LXN_REMOTE_DIR:-/home/${SSH_USER}/listen_lxn_mqtt}"
+readonly SESSION_NAME="${LXN_TMUX_SESSION:-listen_lxn}"
+
+readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly ENV_TEMPLATE="${HERE}/.env.example"
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+log() { printf '\033[1;32m[setup]\033[0m %s\n' "$*"; }
+die() { printf '\033[1;31m[setup:err]\033[0m %s\n' "$*" >&2; exit 1; }
+
+remote_target() { printf '%s@%s' "${SSH_USER}" "${SSH_HOST}"; }
+
+# ── preflight ────────────────────────────────────────────────────────────────
+preflight() {
+    command -v ssh   >/dev/null || die "ssh not found"
+    command -v rsync >/dev/null || die "rsync not found"
+    [[ -f "${HERE}/Cargo.toml" ]] || die "must run from the listen_lxn_mqtt repo root"
+    log "target=$(remote_target) remote_dir=${REMOTE_DIR}"
+}
+
+# ── ensure rust on lxn ───────────────────────────────────────────────────────
+ensure_rust() {
+    log "ensuring rust toolchain on ${SSH_HOST}"
+    ssh "$(remote_target)" 'bash -s' <<'REMOTE'
+set -euo pipefail
+if ! command -v cargo >/dev/null 2>&1; then
+    echo "installing rustup + stable toolchain"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+    # shellcheck disable=SC1090
+    source "${HOME}/.cargo/env"
+fi
+cargo --version
+rustc --version
+REMOTE
+}
+
+# ── sync source ──────────────────────────────────────────────────────────────
+sync_source() {
+    log "rsync source → ${REMOTE_DIR}"
+    ssh "$(remote_target)" "mkdir -p '${REMOTE_DIR}'"
+    rsync -azP --delete \
+        --exclude='target' \
+        --exclude='.env' \
+        --exclude='.git' \
+        --exclude='.DS_Store' \
+        "${HERE}/" "$(remote_target):${REMOTE_DIR}/"
+}
+
+# ── build on lxn ─────────────────────────────────────────────────────────────
+build_remote() {
+    log "cargo build --release on ${SSH_HOST}"
+    ssh "$(remote_target)" \
+        "cd '${REMOTE_DIR}' && source \"\${HOME}/.cargo/env\" && cargo build --release"
+}
+
+# ── env template ─────────────────────────────────────────────────────────────
+ensure_remote_env() {
+    log "ensuring ${REMOTE_DIR}/.env on ${SSH_HOST}"
+    # if the template exists locally, push it once; if remote .env already exists, keep it
+    if [[ -f "${ENV_TEMPLATE}" ]]; then
+        ssh "$(remote_target)" "test -f '${REMOTE_DIR}/.env' \
+            || cat > '${REMOTE_DIR}/.env'" < "${ENV_TEMPLATE}"
+    fi
+    ssh "$(remote_target)" "test -f '${REMOTE_DIR}/.env' \
+        || echo 'WARNING: no ${REMOTE_DIR}/.env on lxn — listener will fail to start'"
+}
+
+# ── tmux ─────────────────────────────────────────────────────────────────────
+start_tmux() {
+    log "starting tmux session '${SESSION_NAME}'"
+    local cmd="cd '${REMOTE_DIR}' && set -a && . ./.env && set +a && ./target/release/listen_lxn_mqtt"
+    ssh "$(remote_target)" \
+        "tmux has-session -t '${SESSION_NAME}' 2>/dev/null \
+            && echo 'session ${SESSION_NAME} already running' \
+            || tmux new-session -d -s '${SESSION_NAME}' -c '${REMOTE_DIR}' '${cmd}' \
+            && tmux list-sessions"
+}
+
+# ── main ─────────────────────────────────────────────────────────────────────
+attach_usage() {
+    cat <<EOF
+
+next:
+    ssh $(remote_target) -t tmux attach -t ${SESSION_NAME}     # attach
+    ssh $(remote_target) 'tmux capture-pane -p -t ${SESSION_NAME} -S -50'   # tail
+    ssh $(remote_target) 'tmux kill-session -t ${SESSION_NAME}'            # stop
+EOF
+}
+
+main() {
+    preflight
+    ensure_rust
+    sync_source
+    build_remote
+    ensure_remote_env
+    start_tmux
+    attach_usage
+    log "done."
+}
+
+main "$@"

@@ -7,3 +7,6 @@ edition = "2024"
 rumqttc = "0.24"
 dotenvy = "0.15"
 mac_address = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "time"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "json", "macros"] }
+serde_json = "1"
