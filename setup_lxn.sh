@@ -68,9 +68,12 @@ ensure_rust() {
     if ! command -v cargo >/dev/null 2>&1; then
         echo "installing rustup + stable toolchain"
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-        # shellcheck disable=SC1090
-        source "${HOME}/.cargo/env"
     fi
+    # persist cargo PATH for tmux + future shells
+    grep -q '.cargo/env' "${HOME}/.bashrc" \
+        || echo 'source "${HOME}/.cargo/env"' >> "${HOME}/.bashrc"
+    # shellcheck disable=SC1090
+    source "${HOME}/.cargo/env"
     cargo --version
     rustc --version
 }
@@ -100,7 +103,8 @@ build() {
 # ── tmux ─────────────────────────────────────────────────────────────────────
 start_tmux() {
     log "starting tmux session '${SESSION_NAME}'"
-    local cmd="cd '${HERE}' && set -a && . ./.env && set +a && ./target/release/listen_lxn_mqtt"
+    # keep pane alive after binary exits so crash logs are readable
+    local cmd="cd '${HERE}' && source \"\${HOME}/.cargo/env\" && set -a && . ./.env && set +a && ./target/release/listen_lxn_mqtt; echo '--- process exited (code: '$?) ---'; exec bash"
     tmux has-session -t "${SESSION_NAME}" 2>/dev/null \
         && echo "session ${SESSION_NAME} already running" \
         || tmux new-session -d -s "${SESSION_NAME}" -c "${HERE}" "${cmd}"
