@@ -17,8 +17,19 @@ if [[ -f "${HERE}/.env" ]]; then
     set -a && source "${HERE}/.env" && set +a
 fi
 
-readonly SSH_HOST="${LXN_HOST:-lxn}"
-readonly SSH_USER="${LXN_USER:-pi}"
+# ── runtime prompts (env var > interactive prompt > default) ─────────────────
+if [[ -z "${LXN_HOST:-}" ]]; then
+    read -rp 'SSH host [lxn]: ' LXN_HOST
+    readonly SSH_HOST="${LXN_HOST:-lxn}"
+else
+    readonly SSH_HOST="${LXN_HOST}"
+fi
+if [[ -z "${LXN_USER:-}" ]]; then
+    read -rp 'SSH user [pi]: ' LXN_USER
+    readonly SSH_USER="${LXN_USER:-pi}"
+else
+    readonly SSH_USER="${LXN_USER}"
+fi
 readonly REMOTE_DIR="${LXN_REMOTE_DIR:-/home/${SSH_USER}/listen_lxn_mqtt}"
 readonly SESSION_NAME="${LXN_TMUX_SESSION:-listen_lxn}"
 
