@@ -17,21 +17,22 @@ if [[ -f "${HERE}/.env" ]]; then
     set -a && source "${HERE}/.env" && set +a
 fi
 
-# ── runtime prompts (env var > interactive prompt > default) ─────────────────
-if [[ -z "${LXN_HOST:-}" ]]; then
-    read -rp 'SSH host [lxn]: ' LXN_HOST
-    readonly SSH_HOST="${LXN_HOST:-lxn}"
-else
-    readonly SSH_HOST="${LXN_HOST}"
-fi
-if [[ -z "${LXN_USER:-}" ]]; then
-    read -rp 'SSH user [pi]: ' LXN_USER
-    readonly SSH_USER="${LXN_USER:-pi}"
-else
-    readonly SSH_USER="${LXN_USER}"
-fi
+# ── defaults (env var > hardcoded default) ───────────────────────────────────
+readonly SSH_HOST="${LXN_HOST:-lxn}"
+readonly SSH_USER="${LXN_USER:-pi}"
 readonly REMOTE_DIR="${LXN_REMOTE_DIR:-/home/${SSH_USER}/listen_lxn_mqtt}"
 readonly SESSION_NAME="${LXN_TMUX_SESSION:-listen_lxn}"
+
+# ── remote service endpoints (env var > localhost default) ───────────────────
+readonly PG_HOST="${PG_HOST:-127.0.0.1}"
+readonly PG_PORT="${PG_PORT:-5432}"
+readonly PG_USER="${PG_USER:-postgres}"
+readonly PG_PASSWORD="${PG_PASSWORD:-postgres}"
+readonly PG_DB="${PG_DB:-listen_lxn}"
+
+readonly MQTT_HOST="${MQTT_HOST:-127.0.0.1}"
+readonly MQTT_PORT="${MQTT_PORT:-1883}"
+readonly MQTT_TOPIC="${MQTT_TOPIC:-sensors/+/reading}"
 
 readonly ENV_TEMPLATE="${HERE}/.env.example"
 
@@ -100,16 +101,25 @@ build_remote() {
         "cd '${REMOTE_DIR}' && source \"\${HOME}/.cargo/env\" && cargo build --release"
 }
 
-# ── env template ─────────────────────────────────────────────────────────────
+# ── write remote .env with service endpoints ────────────────────────────────
 ensure_remote_env() {
-    log "ensuring ${REMOTE_DIR}/.env on ${SSH_HOST}"
-    # if the template exists locally, push it once; if remote .env already exists, keep it
-    if [[ -f "${ENV_TEMPLATE}" ]]; then
-        ssh "$(remote_target)" "test -f '${REMOTE_DIR}/.env' \
-            || cat > '${REMOTE_DIR}/.env'" < "${ENV_TEMPLATE}"
-    fi
-    ssh "$(remote_target)" "test -f '${REMOTE_DIR}/.env' \
-        || echo 'WARNING: no ${REMOTE_DIR}/.env on lxn — listener will fail to start'"
+    log "writing ${REMOTE_DIR}/.env on ${SSH_HOST}"
+    local env_content
+    env_content=$(cat <<EOF
+PG_HOST=${PG_HOST}
+PG_PORT=${PG_PORT}
+PG_USER=${PG_USER}
+PG_PASSWORD=${PG_PASSWORD}
+PG_DB=${PG_DB}
+
+MQTT_HOST=${MQTT_HOST}
+MQTT_PORT=${MQTT_PORT}
+MQTT_TOPIC=${MQTT_TOPIC}
+EOF
+    )
+    ssh "$(remote_target)" "cat > '${REMOTE_DIR}/.env'" <<EOF
+${env_content}
+EOF
 }
 
 # ── tmux ─────────────────────────────────────────────────────────────────────
