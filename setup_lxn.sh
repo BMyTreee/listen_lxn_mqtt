@@ -103,10 +103,11 @@ build() {
 # ── tmux ─────────────────────────────────────────────────────────────────────
 start_tmux() {
     log "starting tmux session '${SESSION_NAME}'"
-    # keep pane alive after binary exits so crash logs are readable
-    local cmd="cd '${HERE}' && source \"\${HOME}/.cargo/env\" && set -a && . ./.env && set +a && ./target/release/listen_lxn_mqtt; echo '--- process exited (code: '$?) ---'; exec bash"
     tmux kill-session -t "${SESSION_NAME}" 2>/dev/null || true
-    tmux new-session -d -s "${SESSION_NAME}" -c "${HERE}" "${cmd}"
+    # interactive shell stays alive even after the binary crashes
+    tmux new-session -d -s "${SESSION_NAME}" -c "${HERE}"
+    tmux send-keys -t "${SESSION_NAME}" \
+        "source \"\${HOME}/.cargo/env\" && set -a && . ./.env && set +a && ./target/release/listen_lxn_mqtt" Enter
     tmux list-sessions
 }
 
