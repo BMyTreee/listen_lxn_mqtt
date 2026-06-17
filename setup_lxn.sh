@@ -11,13 +11,17 @@
 #
 set -euo pipefail
 
-# ── constants ────────────────────────────────────────────────────────────────
+# ── env (local .env if present, then defaults) ───────────────────────────────
+readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${HERE}/.env" ]]; then
+    set -a && source "${HERE}/.env" && set +a
+fi
+
 readonly SSH_HOST="${LXN_HOST:-lxn}"
 readonly SSH_USER="${LXN_USER:-pi}"
 readonly REMOTE_DIR="${LXN_REMOTE_DIR:-/home/${SSH_USER}/listen_lxn_mqtt}"
 readonly SESSION_NAME="${LXN_TMUX_SESSION:-listen_lxn}"
 
-readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly ENV_TEMPLATE="${HERE}/.env.example"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -32,6 +36,22 @@ preflight() {
     command -v rsync >/dev/null || die "rsync not found"
     [[ -f "${HERE}/Cargo.toml" ]] || die "must run from the listen_lxn_mqtt repo root"
     log "target=$(remote_target) remote_dir=${REMOTE_DIR}"
+}
+
+# ── enable password auth on lxn sshd ─────────────────────────────────────────
+ensure_ssh_password_auth() {
+    log "enabling password authentication on ${SSH_HOST}"
+    local cmd="ssh -o StrictHostKeyChecking=no $(remote_target) 'bash -s'"
+    if command -v sshpass >/dev/null 2>&1 && [[ -n "${LXN_SSH_PASS:-}" ]]; then
+        cmd="sshpass -p '${LXN_SSH_PASS}' $cmd"
+    fi
+    eval "$cmd" <<'REMOTE'
+set -euo pipefail
+SSHD_CONFIG="/etc/ssh/sshd_config"
+sudo sed -i "s/^#*PasswordAuthentication.*/PasswordAuthentication yes/" "$SSHD_CONFIG"
+sudo sed -i "s/^#*PermitRootLogin.*/PermitRootLogin yes/" "$SSHD_CONFIG"
+sudo systemctl restart sshd || sudo systemctl restart ssh
+REMOTE
 }
 
 # ── ensure rust on lxn ───────────────────────────────────────────────────────
@@ -105,6 +125,7 @@ EOF
 
 main() {
     preflight
+    ensure_ssh_password_auth
     ensure_rust
     sync_source
     build_remote
