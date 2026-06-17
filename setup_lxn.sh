@@ -12,35 +12,49 @@ set -euo pipefail
 readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SESSION_NAME="listen_lxn"
 
-# ── runtime prompts (hardcoded default, customize at runtime) ────────────────
-PG_HOST="${PG_HOST:-127.0.0.1}"
-read -rp "Postgres host [$PG_HOST]: " INPUT && [[ -n "$INPUT" ]] && PG_HOST="$INPUT"
-
-PG_PORT="${PG_PORT:-5432}"
-read -rp "Postgres port [$PG_PORT]: " INPUT && [[ -n "$INPUT" ]] && PG_PORT="$INPUT"
-
-PG_USER="${PG_USER:-postgres}"
-read -rp "Postgres user [$PG_USER]: " INPUT && [[ -n "$INPUT" ]] && PG_USER="$INPUT"
-
-PG_PASSWORD="${PG_PASSWORD:-postgres}"
-read -rsp "Postgres password [$PG_PASSWORD]: " INPUT && [[ -n "$INPUT" ]] && PG_PASSWORD="$INPUT"
-echo
-
-PG_DB="${PG_DB:-listen_lxn}"
-read -rp "Postgres db [$PG_DB]: " INPUT && [[ -n "$INPUT" ]] && PG_DB="$INPUT"
-
-MQTT_HOST="${MQTT_HOST:-127.0.0.1}"
-read -rp "MQTT host [$MQTT_HOST]: " INPUT && [[ -n "$INPUT" ]] && MQTT_HOST="$INPUT"
-
-MQTT_PORT="${MQTT_PORT:-1883}"
-read -rp "MQTT port [$MQTT_PORT]: " INPUT && [[ -n "$INPUT" ]] && MQTT_PORT="$INPUT"
-
-MQTT_TOPIC="${MQTT_TOPIC:-sensors/+/reading}"
-read -rp "MQTT topic [$MQTT_TOPIC]: " INPUT && [[ -n "$INPUT" ]] && MQTT_TOPIC="$INPUT"
-
 # ── helpers ──────────────────────────────────────────────────────────────────
 log() { printf '\033[1;32m[setup]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[setup:err]\033[0m %s\n' "$*" >&2; exit 1; }
+
+# prompt VAR "label" [silent] — set VAR from user input or keep default
+prompt() {
+    local var="$1" label="$2" silent="${3:-}"
+    local input
+    if [[ "$silent" == "silent" ]]; then
+        read -rsp "$label [${!var}]: " input || true
+        echo
+    else
+        read -rp "$label [${!var}]: " input || true
+    fi
+    if [[ -n "$input" ]]; then
+        printf -v "$var" '%s' "$input"
+    fi
+}
+
+# ── runtime prompts (hardcoded default, customize at runtime) ────────────────
+PG_HOST="${PG_HOST:-127.0.0.1}"
+prompt PG_HOST "Postgres host"
+
+PG_PORT="${PG_PORT:-5432}"
+prompt PG_PORT "Postgres port"
+
+PG_USER="${PG_USER:-postgres}"
+prompt PG_USER "Postgres user"
+
+PG_PASSWORD="${PG_PASSWORD:-postgres}"
+prompt PG_PASSWORD "Postgres password" silent
+
+PG_DB="${PG_DB:-listen_lxn}"
+prompt PG_DB "Postgres db"
+
+MQTT_HOST="${MQTT_HOST:-127.0.0.1}"
+prompt MQTT_HOST "MQTT host"
+
+MQTT_PORT="${MQTT_PORT:-1883}"
+prompt MQTT_PORT "MQTT port"
+
+MQTT_TOPIC="${MQTT_TOPIC:-sensors/+/reading}"
+prompt MQTT_TOPIC "MQTT topic"
 
 # ── preflight ────────────────────────────────────────────────────────────────
 preflight() {
