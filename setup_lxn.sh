@@ -69,11 +69,11 @@ open_local_ssh() {
     systemctl restart sshd || systemctl restart ssh
 }
 
-# ── install C toolchain + deps via apt ───────────────────────────────────────
+# ── install C toolchain + tmux + deps via apt ────────────────────────────────
 install_deps() {
-    log "installing build-essential + curl via apt"
+    log "installing build-essential, curl, tmux via apt"
     apt-get update
-    apt-get install -y build-essential curl pkg-config libssl-dev
+    apt-get install -y build-essential curl pkg-config libssl-dev tmux
 }
 
 # ── ensure rust ──────────────────────────────────────────────────────────────
@@ -137,10 +137,27 @@ jump_to_session() {
 attach_usage() {
     cat <<EOF
 
-next:
-    tmux attach -t ${SESSION_NAME}                              # attach
-    tmux capture-pane -p -t ${SESSION_NAME} -S -50              # tail
-    tmux kill-session -t ${SESSION_NAME}                        # stop
+┌─ tmux cheat-sheet (session: ${SESSION_NAME}) ─────────────────────────────┐
+│ attach / switch into the session:                                            │
+│   tmux attach -t ${SESSION_NAME}            # from a normal shell           │
+│   tmux switch-client -t ${SESSION_NAME}     # from inside another tmux      │
+│                                                                              │
+│ once inside the session, all commands start with the prefix Ctrl+b:          │
+│   Ctrl+b  d            detach (leave it running in the background)           │
+│   Ctrl+b  s            list/switch between sessions                          │
+│   Ctrl+b  ( / )        previous / next session                               │
+│   Ctrl+b  c            create a new window inside the session                │
+│   Ctrl+b  n / p        next / previous window                                │
+│   Ctrl+b  0..9         jump to window N                                      │
+│   Ctrl+b  %            split left/right    Ctrl+b " split top/bottom         │
+│   Ctrl+b  o            cycle panes         Ctrl+b arrows move between panes  │
+│   Ctrl+b  [            enter copy-mode (scroll back, q to exit)              │
+│                                                                              │
+│ from outside the session:                                                    │
+│   tmux ls                                   # list sessions                  │
+│   tmux capture-pane -p -t ${SESSION_NAME} -S -50  # tail last 50 lines       │
+│   tmux kill-session -t ${SESSION_NAME}      # stop the listener             │
+└──────────────────────────────────────────────────────────────────────────────┘
 EOF
 }
 
