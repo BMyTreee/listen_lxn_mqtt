@@ -22,7 +22,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(listener_id = %listener_id, host = %host, topic = %topic, "starting listener");
 
     let pool = db::connect().await?;
-    info!("postgres connected");
 
     let mut handle = mqtt::run(host, topic, listener_id);
 
