@@ -17,13 +17,13 @@ if [[ -f "${HERE}/.env" ]]; then
     set -a && source "${HERE}/.env" && set +a
 fi
 
-# ── defaults (env var > hardcoded default) ───────────────────────────────────
+# ── ssh target (hardcoded) ───────────────────────────────────────────────────
 readonly SSH_HOST="${LXN_HOST:-lxn}"
 readonly SSH_USER="${LXN_USER:-pi}"
-readonly REMOTE_DIR="${LXN_REMOTE_DIR:-/home/${SSH_USER}/listen_lxn_mqtt}"
-readonly SESSION_NAME="${LXN_TMUX_SESSION:-listen_lxn}"
+readonly REMOTE_DIR="/home/${SSH_USER}/listen_lxn_mqtt"
+readonly SESSION_NAME="listen_lxn"
 
-# ── remote service endpoints (env var > localhost default) ───────────────────
+# ── remote service endpoints (local by default) ──────────────────────────────
 readonly PG_HOST="${PG_HOST:-127.0.0.1}"
 readonly PG_PORT="${PG_PORT:-5432}"
 readonly PG_USER="${PG_USER:-postgres}"
