@@ -105,10 +105,18 @@ start_tmux() {
     log "starting tmux session '${SESSION_NAME}'"
     # keep pane alive after binary exits so crash logs are readable
     local cmd="cd '${HERE}' && source \"\${HOME}/.cargo/env\" && set -a && . ./.env && set +a && ./target/release/listen_lxn_mqtt; echo '--- process exited (code: '$?) ---'; exec bash"
-    tmux has-session -t "${SESSION_NAME}" 2>/dev/null \
-        && echo "session ${SESSION_NAME} already running" \
-        || tmux new-session -d -s "${SESSION_NAME}" -c "${HERE}" "${cmd}"
+    tmux kill-session -t "${SESSION_NAME}" 2>/dev/null || true
+    tmux new-session -d -s "${SESSION_NAME}" -c "${HERE}" "${cmd}"
     tmux list-sessions
+}
+
+# ── jump into the running session ────────────────────────────────────────────
+jump_to_session() {
+    if [[ -n "${TMUX:-}" ]]; then
+        exec tmux switch-client -t "${SESSION_NAME}"
+    else
+        exec tmux attach -t "${SESSION_NAME}"
+    fi
 }
 
 attach_usage() {
@@ -131,6 +139,7 @@ main() {
     start_tmux
     attach_usage
     log "done."
+    jump_to_session
 }
 
 main "$@"
