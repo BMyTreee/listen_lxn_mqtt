@@ -55,6 +55,13 @@ open_local_ssh() {
     systemctl restart sshd || systemctl restart ssh
 }
 
+# ── install C toolchain + deps via apt ───────────────────────────────────────
+install_deps() {
+    log "installing build-essential + curl via apt"
+    apt-get update
+    apt-get install -y build-essential curl pkg-config libssl-dev
+}
+
 # ── ensure rust ──────────────────────────────────────────────────────────────
 ensure_rust() {
     log "ensuring rust toolchain"
@@ -113,6 +120,7 @@ EOF
 main() {
     preflight
     open_local_ssh
+    install_deps
     ensure_rust
     write_env
     build
