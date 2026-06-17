@@ -43,18 +43,16 @@ log() { printf '\033[1;32m[setup]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[setup:err]\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ── preflight ────────────────────────────────────────────────────────────────
-readonly SUDO=$([[ "$(id -u)" -eq 0 ]] && echo "" || echo "sudo")
-
 preflight() {
     [[ -f "${HERE}/Cargo.toml" ]] || die "must run from the listen_lxn_mqtt repo root"
-    log "dir=${HERE} sudo=${SUDO:-none}"
+    log "dir=${HERE}"
 }
 
 # ── open local sshd for password auth (so external clients can access) ───────
 open_local_ssh() {
     log "enabling password authentication on local sshd"
-    ${SUDO} sed -i "s/^#*PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config
-    ${SUDO} systemctl restart sshd || ${SUDO} systemctl restart ssh
+    sed -i "s/^#*PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config
+    systemctl restart sshd || systemctl restart ssh
 }
 
 # ── ensure rust ──────────────────────────────────────────────────────────────
