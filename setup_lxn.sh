@@ -23,16 +23,31 @@ readonly SSH_USER="${LXN_USER:-pi}"
 readonly REMOTE_DIR="/home/${SSH_USER}/listen_lxn_mqtt"
 readonly SESSION_NAME="listen_lxn"
 
-# ── remote service endpoints (local by default) ──────────────────────────────
-readonly PG_HOST="${PG_HOST:-127.0.0.1}"
-readonly PG_PORT="${PG_PORT:-5432}"
-readonly PG_USER="${PG_USER:-postgres}"
-readonly PG_PASSWORD="${PG_PASSWORD:-postgres}"
-readonly PG_DB="${PG_DB:-listen_lxn}"
+# ── remote service endpoints (hardcoded defaults, prompt at runtime) ─────────
+PG_HOST="${PG_HOST:-127.0.0.1}"
+read -rp "Postgres host [$PG_HOST]: " _ && [[ -n "$_" ]] && PG_HOST="$_"
 
-readonly MQTT_HOST="${MQTT_HOST:-127.0.0.1}"
-readonly MQTT_PORT="${MQTT_PORT:-1883}"
-readonly MQTT_TOPIC="${MQTT_TOPIC:-sensors/+/reading}"
+PG_PORT="${PG_PORT:-5432}"
+read -rp "Postgres port [$PG_PORT]: " _ && [[ -n "$_" ]] && PG_PORT="$_"
+
+PG_USER="${PG_USER:-postgres}"
+read -rp "Postgres user [$PG_USER]: " _ && [[ -n "$_" ]] && PG_USER="$_"
+
+PG_PASSWORD="${PG_PASSWORD:-postgres}"
+read -rsp "Postgres password [$PG_PASSWORD]: " _ && [[ -n "$_" ]] && PG_PASSWORD="$_"
+echo
+
+PG_DB="${PG_DB:-listen_lxn}"
+read -rp "Postgres db [$PG_DB]: " _ && [[ -n "$_" ]] && PG_DB="$_"
+
+MQTT_HOST="${MQTT_HOST:-127.0.0.1}"
+read -rp "MQTT host [$MQTT_HOST]: " _ && [[ -n "$_" ]] && MQTT_HOST="$_"
+
+MQTT_PORT="${MQTT_PORT:-1883}"
+read -rp "MQTT port [$MQTT_PORT]: " _ && [[ -n "$_" ]] && MQTT_PORT="$_"
+
+MQTT_TOPIC="${MQTT_TOPIC:-sensors/+/reading}"
+read -rp "MQTT topic [$MQTT_TOPIC]: " _ && [[ -n "$_" ]] && MQTT_TOPIC="$_"
 
 readonly ENV_TEMPLATE="${HERE}/.env.example"
 
