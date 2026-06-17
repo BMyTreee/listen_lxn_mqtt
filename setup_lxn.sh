@@ -17,9 +17,12 @@ if [[ -f "${HERE}/.env" ]]; then
     set -a && source "${HERE}/.env" && set +a
 fi
 
-# ── ssh target (hardcoded) ───────────────────────────────────────────────────
-readonly SSH_HOST="${LXN_HOST:-lxn}"
-readonly SSH_USER="${LXN_USER:-pi}"
+# ── ssh target (hardcoded defaults, prompt at runtime) ───────────────────────
+SSH_HOST="${LXN_HOST:-lxn}"
+read -rp "SSH host [$SSH_HOST]: " _ && [[ -n "$_" ]] && SSH_HOST="$_"
+
+SSH_USER="${LXN_USER:-pi}"
+read -rp "SSH user [$SSH_USER]: " _ && [[ -n "$_" ]] && SSH_USER="$_"
 readonly REMOTE_DIR="/home/${SSH_USER}/listen_lxn_mqtt"
 readonly SESSION_NAME="listen_lxn"
 
